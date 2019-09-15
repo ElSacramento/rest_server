@@ -8,19 +8,35 @@ import (
 
 type server struct {
 	addr string
-	//db *sql.DB
+	db *database
 	router *Router
 }
 
 func NewServer() (*server, error) {
-	s := &server{addr: "127.0.0.1:8080", router: &Router{routes: make(map[string]route)}}
+	db := &database{user: "postgres", password: "pwd", baseURL: "localhost:5432/postgres"}
+	if err := db.createConnection(); err != nil {
+		return nil, err
+	}
+
+	s := &server{addr: "127.0.0.1:8080", router: &Router{routes: make(map[string]route)}, db: db}
+	s.routes()
+
 	return s, nil
 }
 
 func (s *server) Run() {
-	s.routes()
 	log.Printf("Start listen to: %s", s.addr)
-	log.Fatalln("Fatal: http:", http.ListenAndServe(s.addr, s.router))
+	go func() {
+		log.Fatalln("Fatal: http:", http.ListenAndServe(s.addr, s.router))
+	}()
+}
+
+func (s *server) Stop() error {
+	log.Printf("Stop listen to: %s", s.addr)
+	if err := s.db.closeConnection(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *server) routes() {

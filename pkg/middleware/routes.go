@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"strings"
@@ -41,5 +42,5 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, request *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	foundRoute.handler.ServeHTTP(w, request)
+	foundRoute.handler.ServeHTTP(w, request.WithContext(context.Background()))
 }

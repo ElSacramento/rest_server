@@ -33,13 +33,11 @@ func ResponseJSON (w http.ResponseWriter, v interface{}) {
 
 
 func Get(w http.ResponseWriter, r *http.Request) {
-	log.Infof("Get request to user")
-	log.Infof("Request: &v", r)
+	log.Info("Get request to user")
 	ResponseJSON(w, &User{ID: 1})
 }
 
 func Add(w http.ResponseWriter, r *http.Request) {
-	log.Infof("Get request to user/add")
-	log.Infof("Request: &v", r)
+	log.Info("Get request to user/add")
 	ResponseJSON(w, &User{ID: 2})
 }
