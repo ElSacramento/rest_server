@@ -10,10 +10,7 @@ import (
 )
 
 func TestServer_Run(t *testing.T) {
-	srv, err := NewServer()
-	if err != nil {
-		t.Fatalf("failed to initialize server: %v", err)
-	}
+	srv := &server{addr: "127.0.0.1:8080", router: &Router{routes: make(map[string]route)}}
 	srv.routes()
 	t.Run("check route user", func(t *testing.T) {
 		req, err := http.NewRequest("GET", "/user", nil)
