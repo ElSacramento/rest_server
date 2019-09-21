@@ -13,12 +13,12 @@ type server struct {
 }
 
 func NewServer() (*server, error) {
-	db := &database{user: "postgres", password: "pwd", baseURL: "localhost:5432/postgres"}
+	db := &database{user: "postgres", password: "pwd", baseURL: "db:5432/postgres"}
 	if err := db.createConnection(); err != nil {
 		return nil, err
 	}
 
-	s := &server{addr: "127.0.0.1:8080", router: &Router{routes: make(map[string]route)}, db: db}
+	s := &server{addr: ":8080", router: &Router{routes: make(map[string]route)}, db: db}
 	s.routes()
 
 	return s, nil
