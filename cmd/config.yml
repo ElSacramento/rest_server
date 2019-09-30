@@ -1,0 +1,9 @@
+database:
+    host: "***"
+    port: "5432"
+    user: "postgres"
+    password: "***"
+    name: "database-1"
+server:
+    host: ""
+    port: "8080"

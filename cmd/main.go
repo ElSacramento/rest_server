@@ -1,7 +1,8 @@
 package main
 
 import (
-	log "github.com/sirupsen/logrus"
+	"flag"
+	"github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
 	"rest_server/pkg/middleware"
@@ -9,9 +10,27 @@ import (
 )
 
 func main() {
-	server, err := middleware.NewServer()
+	cfgPath := flag.String("cfg", "", "cfg file path")
+	flag.Parse()
+
+	if *cfgPath == "" {
+		logrus.Fatalln("Config for server is not set")
+	}
+
+	cfg, err := middleware.ParseConfig(cfgPath)
 	if err != nil {
-		log.WithError(err).Panic("Failed to initialize server")
+		logrus.WithError(err).Panic("Failed to parse config")
+	}
+
+	if err := cfg.ValidateConfig(); err != nil {
+		logrus.WithError(err).Panic("Failed to validate config")
+	}
+
+	logrus.Infof("Config: %+v", cfg)
+
+	server, err := middleware.NewServer(cfg)
+	if err != nil {
+		logrus.WithError(err).Panic("Failed to initialize server")
 	}
 	server.Run()
 
@@ -19,9 +38,9 @@ func main() {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	s := <-ch
-	log.Printf("Got signal: %v", s)
+	logrus.Printf("Got signal: %v", s)
 
 	if err := server.Stop(); err != nil {
-		log.WithError(err).Panic("Failed to shutdown server")
+		logrus.WithError(err).Panic("Failed to shutdown server")
 	}
 }
