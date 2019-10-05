@@ -40,7 +40,6 @@ func main() {
 	s := <-ch
 	logrus.Printf("Got signal: %v", s)
 
-	if err := server.Stop(); err != nil {
-		logrus.WithError(err).Panic("Failed to shutdown server")
-	}
+	server.Stop()
+	close(ch)
 }

@@ -57,19 +57,23 @@ func (s *server) Run() {
 	}()
 }
 
-func (s *server) Stop() error {
+func (s *server) Stop() {
+	hasError := false
 	s.server.SetKeepAlivesEnabled(false)
-	logrus.Printf("Stop listen to: %s", s.addr)
-	if err := s.db.CloseConnection(); err != nil {
-		logrus.Fatalln("Problem with closing connection: ", err)
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	s.server.SetKeepAlivesEnabled(false)
 	if err := s.server.Shutdown(ctx); err != nil {
-		logrus.Fatalln("Could not gracefully shutdown the server: ", err)
+		hasError = true
+		logrus.Error("Could not gracefully shutdown the server: ", err)
 	}
-	return nil
+	logrus.Printf("Stop listen to: %s", s.addr)
+	if err := s.db.CloseConnection(); err != nil {
+		hasError = true
+		logrus.Error("Problem with closing connection: ", err)
+	}
+	if hasError {
+		panic("Failed to correct stopped server")
+	}
 }
 
 func (s *server) routes() {
