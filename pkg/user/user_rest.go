@@ -8,7 +8,6 @@ import (
 
 	"gopkg.in/go-playground/validator.v9"
 
-	"github.com/sirupsen/logrus"
 	"golang.org/x/xerrors"
 )
 
@@ -17,7 +16,6 @@ type Service struct {
 }
 
 func (s *Service) Get(w http.ResponseWriter, r *http.Request) {
-	logrus.Info("Get request to /user")
 	rawJSON, err := rest.GetRequestQuery(r)
 	if err != nil {
 		http.Error(w, xerrors.Errorf("Get request query failed: %v", err).Error(), http.StatusBadRequest)
@@ -61,7 +59,6 @@ func (s *Service) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Service) Add(w http.ResponseWriter, r *http.Request) {
-	logrus.Info("Get request to /user/add")
 	data, err := rest.GetRequestBody(r)
 	if err != nil {
 		http.Error(w, xerrors.Errorf("Get request body failed: %v", err).Error(), http.StatusBadRequest)
@@ -82,6 +79,10 @@ func (s *Service) Add(w http.ResponseWriter, r *http.Request) {
 
 	userID, err := s.DB.InsertUser(r.Context(), &acc)
 	if err != nil {
+		if err, ok := err.(database.UserAlreadyExistsError); ok {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/lib/pq"
+
 	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/xerrors"
@@ -69,12 +71,19 @@ func (db *PostgresDB) InsertUser(ctx context.Context, dbUser *Account) (int64, e
 	// todo pwd hash
 	pwd := dbUser.Password
 	createdAt := time.Now()
-	res, err := tx.ExecContext(ctx,
-		"insert into account (email, password, name, phone, region_id, meta, version, created, updated, last_login, last_action) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);",
-		dbUser.Email, pwd, dbUser.Name, dbUser.Phone, dbUser.RegionID, dbUser.Meta, dbUser.Version, createdAt, createdAt, nil, nil)
+	var userID int64
+	err = tx.QueryRowContext(ctx,
+		"insert into account (email, password, name, phone, region_id, version, created, updated, last_login, last_action) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) returning user_id",
+		dbUser.Email, pwd, dbUser.Name, dbUser.Phone, dbUser.RegionID, 1, createdAt, createdAt, time.Time{}, time.Time{}).Scan(&userID)
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
 			return 0, err
+		}
+		if err, ok := err.(*pq.Error); ok {
+			if err.Code == "23505" {
+				return 0, UserAlreadyExistsError{}
+			}
+			return 0, xerrors.Errorf("pq error: %s, code: %s", err.Code.Name(), err.Code)
 		}
 		return 0, err
 	}
@@ -82,9 +91,5 @@ func (db *PostgresDB) InsertUser(ctx context.Context, dbUser *Account) (int64, e
 		return 0, err
 	}
 
-	userID, err := res.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
 	return userID, nil
 }

@@ -99,6 +99,9 @@ func TestService_Add(t *testing.T) {
 		if dbUser.Email == "fail@gmail.com" {
 			return 0, sql.ErrTxDone
 		}
+		if dbUser.Email == "exists@gmail.com" {
+			return 0, database.UserAlreadyExistsError{}
+		}
 		return 1, nil
 	}}}
 
@@ -166,6 +169,17 @@ func TestService_Add(t *testing.T) {
 			s.Add(w, r)
 
 			require.Equal(t, http.StatusInternalServerError, w.Code)
+		})
+		t.Run("exists email ", func(t *testing.T) {
+			b := []byte(`{"email": "exists@gmail.com", "password": "pwd", "phone": "8919", "region_id": 1, "name": "test t"}`)
+			r, err := http.NewRequest(http.MethodPost, "/user/add", bytes.NewReader(b))
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			s.Add(w, r)
+
+			require.Equal(t, http.StatusBadRequest, w.Code)
+			require.Contains(t, w.Body.String(), "user already exists")
 		})
 	})
 }

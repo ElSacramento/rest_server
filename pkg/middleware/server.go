@@ -93,10 +93,14 @@ func logHandler(fn http.HandlerFunc) http.HandlerFunc {
 		logrus.Println(fmt.Sprintf("%q", rec.Body))
 
 		// this copies the recorded response to the response writer
-		for k, v := range rec.HeaderMap {
+		for k, v := range rec.Result().Header {
 			w.Header()[k] = v
 		}
 		w.WriteHeader(rec.Code)
-		_, _ = rec.Body.WriteTo(w)
+		_, err = rec.Body.WriteTo(w)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 }

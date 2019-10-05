@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -29,4 +30,10 @@ type Account struct {
 	LastAction *time.Time      `json:"last_action,omitempty"`
 	IsBlocked  bool            `json:"is_blocked,omitempty"`
 	IsDeleted  bool            `json:"is_deleted,omitempty"`
+}
+
+type UserAlreadyExistsError struct{}
+
+func (UserAlreadyExistsError) Error() string {
+	return fmt.Sprintf("user already exists")
 }
