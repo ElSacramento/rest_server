@@ -5,15 +5,15 @@ import (
 )
 
 type ServiceMock struct {
-	GetUserMock    func(ctx context.Context, userID int) (*User, error)
-	InsertUserMock func(ctx context.Context, dbUser *User) (int64, error)
+	GetUserMock    func(ctx context.Context, userID int64) (*Account, error)
+	InsertUserMock func(ctx context.Context, dbUser *Account) (int64, error)
 }
 
-func (s ServiceMock) GetUser(ctx context.Context, userID int) (*User, error) {
+func (s ServiceMock) GetUser(ctx context.Context, userID int64) (*Account, error) {
 	return s.GetUserMock(ctx, userID)
 }
 
-func (s ServiceMock) InsertUser(ctx context.Context, dbUser *User) (int64, error) {
+func (s ServiceMock) InsertUser(ctx context.Context, dbUser *Account) (int64, error) {
 	return s.InsertUserMock(ctx, dbUser)
 }
 

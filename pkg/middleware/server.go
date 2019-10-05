@@ -3,13 +3,14 @@ package middleware
 import (
 	"context"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
 	"rest_server/pkg/database"
 	"rest_server/pkg/user"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 type server struct {
@@ -51,10 +52,8 @@ func NewServer(cfg *Config) (*server, error) {
 
 func (s *server) Run() {
 	logrus.Printf("Start listen to: %s", s.addr)
-	go func() {
-		s.server = &http.Server{Addr: s.addr, Handler: s.router}
-		logrus.Fatalln("Fatal: http:", s.server.ListenAndServe())
-	}()
+	s.server = &http.Server{Addr: s.addr, Handler: s.router}
+	logrus.Fatalln("Fatal: http:", s.server.ListenAndServe())
 }
 
 func (s *server) Stop() {

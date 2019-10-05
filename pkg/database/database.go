@@ -7,26 +7,26 @@ import (
 )
 
 type DataStore interface {
-	GetUser(ctx context.Context, userID int) (*User, error)
-	InsertUser(ctx context.Context, dbUser *User) (int64, error)
 	CreateConnection() error
 	CloseConnection() error
+	GetUser(ctx context.Context, userID int64) (*Account, error)
+	InsertUser(ctx context.Context, dbUser *Account) (int64, error)
 	//DeleteUser(context.Context, int) (interface{}, error)
 }
 
-type User struct {
-	ID         int             `json:"user_id"`
-	Email      string          `json:"email"`
-	Password   string          `json:"password"`
-	Name       string          `json:"name"`
-	Phone      string          `json:"phone"`
-	RegionID   int             `json:"region_id"`
-	Meta       json.RawMessage `json:"meta"`
-	Version    int             `json:"version"`
-	Created    time.Time       `json:"created"`
-	Updated    time.Time       `json:"updated"`
-	LastLogin  time.Time       `json:"last_login"`
-	LastAction time.Time       `json:"last_action"`
-	IsBlocked  bool            `json:"is_blocked"`
-	IsDeleted  bool            `json:"is_deleted"`
+type Account struct {
+	ID         int             `json:"user_id,omitempty"`
+	Email      string          `json:"email" validate:"required,email"`
+	Password   string          `json:"password" validate:"required"`
+	Name       string          `json:"name" validate:"required"`
+	Phone      string          `json:"phone" validate:"required"`
+	RegionID   int             `json:"region_id" validate:"required"`
+	Meta       json.RawMessage `json:"meta,omitempty"`
+	Version    int             `json:"version,omitempty"`
+	Created    *time.Time      `json:"created,omitempty"`
+	Updated    *time.Time      `json:"updated,omitempty"`
+	LastLogin  *time.Time      `json:"last_login,omitempty"`
+	LastAction *time.Time      `json:"last_action,omitempty"`
+	IsBlocked  bool            `json:"is_blocked,omitempty"`
+	IsDeleted  bool            `json:"is_deleted,omitempty"`
 }

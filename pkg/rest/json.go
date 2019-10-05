@@ -1,4 +1,4 @@
-package parse
+package rest
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-func ResponseJSON(w http.ResponseWriter, resp json.RawMessage) error {
+func SendResponse(w http.ResponseWriter, resp json.RawMessage) error {
 	w.Header().Set("Content-Type", "application/json")
 	if _, err := w.Write(resp); err != nil {
 		return err
@@ -14,8 +14,8 @@ func ResponseJSON(w http.ResponseWriter, resp json.RawMessage) error {
 	return nil
 }
 
-// Parse request query params.
-func RequestQueryJSON(r *http.Request) (json.RawMessage, error) {
+// Get request query params as []byte.
+func GetRequestQuery(r *http.Request) (json.RawMessage, error) {
 	if err := r.ParseForm(); err != nil {
 		return nil, err
 	}
@@ -36,8 +36,8 @@ func RequestQueryJSON(r *http.Request) (json.RawMessage, error) {
 	return rawJSON, nil
 }
 
-// Parse request body.
-func RequestBodyJSON(r *http.Request) (json.RawMessage, error) {
+// Get request body as []byte.
+func GetRequestBody(r *http.Request) (json.RawMessage, error) {
 	if r.Body == nil {
 		return []byte(`{}`), nil
 	}

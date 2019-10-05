@@ -4,10 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
+
 	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/xerrors"
-	"time"
 )
 
 type PostgresDB struct {
@@ -45,12 +46,11 @@ func (db *PostgresDB) CloseConnection() error {
 	return nil
 }
 
-func (db *PostgresDB) GetUser(ctx context.Context, userID int) (*User, error) {
-	dbUser := User{}
+func (db *PostgresDB) GetUser(ctx context.Context, userID int64) (*Account, error) {
+	dbUser := Account{}
 	err := db.ConnectionPool.QueryRowContext(
-		ctx, `select * from account where user_id = $1;`, userID).
-		Scan(dbUser.ID, dbUser.Email, dbUser.Password, dbUser.Name, dbUser.Phone, dbUser.RegionID, dbUser.Meta, dbUser.Version,
-			dbUser.Created, dbUser.Updated, dbUser.LastLogin, dbUser.LastAction, dbUser.IsBlocked, dbUser.IsDeleted)
+		ctx, `select user_id, email, password, name, phone, region_id, meta from account where user_id = $1;`, userID).
+		Scan(dbUser.ID, dbUser.Email, dbUser.Password, dbUser.Name, dbUser.Phone, dbUser.RegionID, dbUser.Meta)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -60,7 +60,7 @@ func (db *PostgresDB) GetUser(ctx context.Context, userID int) (*User, error) {
 	return &dbUser, nil
 }
 
-func (db *PostgresDB) InsertUser(ctx context.Context, dbUser *User) (int64, error) {
+func (db *PostgresDB) InsertUser(ctx context.Context, dbUser *Account) (int64, error) {
 	tx, err := db.ConnectionPool.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return 0, err

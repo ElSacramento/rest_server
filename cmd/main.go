@@ -2,11 +2,12 @@ package main
 
 import (
 	"flag"
-	"github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
 	"rest_server/pkg/middleware"
 	"syscall"
+
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -32,7 +33,7 @@ func main() {
 	if err != nil {
 		logrus.WithError(err).Panic("Failed to initialize server")
 	}
-	server.Run()
+	go server.Run()
 
 	// Handle SIGINT and SIGTERM.
 	ch := make(chan os.Signal, 1)
