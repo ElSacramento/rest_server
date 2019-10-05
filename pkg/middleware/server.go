@@ -1,10 +1,15 @@
 package middleware
 
 import (
+	"context"
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"net/http"
+	"net/http/httptest"
+	"net/http/httputil"
 	"rest_server/pkg/database"
 	"rest_server/pkg/user"
+	"time"
 )
 
 type server struct {
@@ -12,6 +17,7 @@ type server struct {
 	port   string
 	addr   string
 	router *Router
+	server *http.Server
 
 	db database.DataStore
 
@@ -46,19 +52,48 @@ func NewServer(cfg *Config) (*server, error) {
 func (s *server) Run() {
 	logrus.Printf("Start listen to: %s", s.addr)
 	go func() {
-		logrus.Fatalln("Fatal: http:", http.ListenAndServe(s.addr, s.router))
+		s.server = &http.Server{Addr: s.addr, Handler: s.router}
+		logrus.Fatalln("Fatal: http:", s.server.ListenAndServe())
 	}()
 }
 
 func (s *server) Stop() error {
+	s.server.SetKeepAlivesEnabled(false)
 	logrus.Printf("Stop listen to: %s", s.addr)
 	if err := s.db.CloseConnection(); err != nil {
-		return err
+		logrus.Fatalln("Problem with closing connection: ", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	s.server.SetKeepAlivesEnabled(false)
+	if err := s.server.Shutdown(ctx); err != nil {
+		logrus.Fatalln("Could not gracefully shutdown the server: ", err)
 	}
 	return nil
 }
 
 func (s *server) routes() {
-	s.router.Get("/user", s.user.Get)
-	s.router.Post("/user/add", s.user.Add)
+	s.router.Get("/user", logHandler(s.user.Get))
+	s.router.Post("/user/add", logHandler(s.user.Add))
+}
+
+func logHandler(fn http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		x, err := httputil.DumpRequest(r, true)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		logrus.Println(fmt.Sprintf("%q", x))
+		rec := httptest.NewRecorder()
+		fn(rec, r)
+		logrus.Println(fmt.Sprintf("%q", rec.Body))
+
+		// this copies the recorded response to the response writer
+		for k, v := range rec.HeaderMap {
+			w.Header()[k] = v
+		}
+		w.WriteHeader(rec.Code)
+		_, _ = rec.Body.WriteTo(w)
+	}
 }
