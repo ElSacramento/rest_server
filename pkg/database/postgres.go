@@ -51,8 +51,8 @@ func (db *PostgresDB) CloseConnection() error {
 func (db *PostgresDB) GetUser(ctx context.Context, userID int64) (*Account, error) {
 	dbUser := Account{}
 	err := db.ConnectionPool.QueryRowContext(
-		ctx, `select user_id, email, password, name, phone, region_id, meta from account where user_id = $1;`, userID).
-		Scan(dbUser.ID, dbUser.Email, dbUser.Password, dbUser.Name, dbUser.Phone, dbUser.RegionID, dbUser.Meta)
+		ctx, `select user_id, email, name, phone, region_id from account where user_id = $1;`, userID).
+		Scan(&dbUser.ID, &dbUser.Email, &dbUser.Name, &dbUser.Phone, &dbUser.RegionID)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}

@@ -27,8 +27,6 @@ func main() {
 		logrus.WithError(err).Panic("Failed to validate config")
 	}
 
-	logrus.Infof("Config: %+v", cfg)
-
 	server, err := middleware.NewServer(cfg)
 	if err != nil {
 		logrus.WithError(err).Panic("Failed to initialize server")

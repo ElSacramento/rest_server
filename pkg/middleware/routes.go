@@ -2,8 +2,10 @@ package middleware
 
 import (
 	"context"
-	"github.com/sirupsen/logrus"
 	"net/http"
+	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 // Router implements http.Handler interface
@@ -40,5 +42,9 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, request *http.Request) {
 		http.Error(w, "wrong request http method", http.StatusMethodNotAllowed)
 		return
 	}
-	foundRoute.handler.ServeHTTP(w, request.WithContext(context.Background()))
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	foundRoute.handler.ServeHTTP(w, request.WithContext(ctx))
 }

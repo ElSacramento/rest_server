@@ -6,6 +6,8 @@ import (
 	"rest_server/pkg/database"
 	"rest_server/pkg/rest"
 
+	"github.com/sirupsen/logrus"
+
 	"gopkg.in/go-playground/validator.v9"
 
 	"golang.org/x/xerrors"
@@ -26,7 +28,8 @@ func (s *Service) Get(w http.ResponseWriter, r *http.Request) {
 		ID int64 `json:"user_id,string"`
 	}{}
 	if err := json.Unmarshal(rawJSON, &requestUser); err != nil {
-		http.Error(w, xerrors.Errorf("Parse request params failed: %v", err).Error(), http.StatusBadRequest)
+		logrus.Infof("Parse request params failed: %v", err)
+		http.Error(w, "bad user_id", http.StatusBadRequest)
 		return
 	}
 

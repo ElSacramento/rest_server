@@ -2,10 +2,7 @@ package middleware
 
 import (
 	"context"
-	"fmt"
 	"net/http"
-	"net/http/httptest"
-	"net/http/httputil"
 	"rest_server/pkg/database"
 	"rest_server/pkg/user"
 	"time"
@@ -53,7 +50,16 @@ func NewServer(cfg *Config) (*server, error) {
 func (s *server) Run() {
 	logrus.Printf("Start listen to: %s", s.addr)
 	s.server = &http.Server{Addr: s.addr, Handler: s.router}
-	logrus.Fatalln("Fatal: http:", s.server.ListenAndServe())
+	err := s.server.ListenAndServe()
+	switch err {
+	case http.ErrServerClosed:
+		logrus.Print("Server shut down")
+	default:
+		if err := s.db.CloseConnection(); err != nil {
+			logrus.Error("Problem with closing connection: ", err)
+		}
+		logrus.Fatalln("Fatal: http:", err)
+	}
 }
 
 func (s *server) Stop() {
@@ -78,29 +84,4 @@ func (s *server) Stop() {
 func (s *server) routes() {
 	s.router.Get("/user", logHandler(s.user.Get))
 	s.router.Post("/user/add", logHandler(s.user.Add))
-}
-
-func logHandler(fn http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		x, err := httputil.DumpRequest(r, true)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		logrus.Println(fmt.Sprintf("%q", x))
-		rec := httptest.NewRecorder()
-		fn(rec, r)
-		logrus.Println(fmt.Sprintf("%q", rec.Body))
-
-		// this copies the recorded response to the response writer
-		for k, v := range rec.Result().Header {
-			w.Header()[k] = v
-		}
-		w.WriteHeader(rec.Code)
-		_, err = rec.Body.WriteTo(w)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
 }
