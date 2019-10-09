@@ -30,21 +30,26 @@ func (r *Router) Post(pattern string, h http.HandlerFunc) {
 }
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, request *http.Request) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	rec := HTTPRecorder{w: w, req: request, status: 200, start: time.Now()}
+	rec.LogRequest()
+
 	method := request.Method
 	foundRoute, exist := r.routes[request.URL.Path]
 	if !exist {
-		logrus.Infof("url not found: %s", request.URL.Path)
-		http.NotFound(w, request)
+		http.NotFound(&rec, request)
+		rec.LogResponse()
 		return
 	}
 	if foundRoute.method != method {
 		logrus.Infof("wrong http method, expected %s, got %s", foundRoute.method, method)
-		http.Error(w, "wrong request http method", http.StatusMethodNotAllowed)
+		http.Error(&rec, "wrong request http method", http.StatusMethodNotAllowed)
+		rec.LogResponse()
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-
-	foundRoute.handler.ServeHTTP(w, request.WithContext(ctx))
+	foundRoute.handler.ServeHTTP(&rec, request.WithContext(ctx))
+	rec.LogResponse()
 }

@@ -82,6 +82,6 @@ func (s *server) Stop() {
 }
 
 func (s *server) routes() {
-	s.router.Get("/user", logHandler(s.user.Get))
-	s.router.Post("/user/add", logHandler(s.user.Add))
+	s.router.Get("/user", s.user.Get)
+	s.router.Post("/user/add", s.user.Add)
 }

@@ -1,52 +1,47 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
-	"net/http/httputil"
 	"time"
 
 	"github.com/sirupsen/logrus"
 )
 
-type ResponseRecorder struct {
+type HTTPRecorder struct {
 	w      http.ResponseWriter
+	req    *http.Request
 	status int
 	body   []byte
+	start  time.Time
 }
 
-func (r ResponseRecorder) Header() http.Header {
+func (r *HTTPRecorder) Header() http.Header {
 	return r.w.Header()
 }
 
-func (r *ResponseRecorder) Write(b []byte) (int, error) {
+func (r *HTTPRecorder) Write(b []byte) (int, error) {
 	r.body = b
 	return r.w.Write(b)
 }
 
-func (r *ResponseRecorder) WriteHeader(statusCode int) {
+func (r *HTTPRecorder) WriteHeader(statusCode int) {
 	r.status = statusCode
 	r.w.WriteHeader(statusCode)
 }
 
-func logHandler(fn http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		d, err := httputil.DumpRequest(r, false)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+func (r *HTTPRecorder) LogRequest() {
+	agent := r.req.Header.Get("User-Agent")
+	conn := r.req.Header.Get("Connection")
+	headersSet := fmt.Sprintf("Host: %q Connection: %q User-Agent: %q", r.req.Host, conn, agent)
+	logrus.Infof("%s %s %s %s", r.req.Method, r.req.RequestURI, r.req.Proto, headersSet)
+}
 
-		start := time.Now()
-		logrus.Printf("%s", string(d))
-
-		rec := ResponseRecorder{w: w, status: 200}
-		fn(&rec, r)
-
-		// log response body if error
-		if rec.status > http.StatusOK {
-			logrus.Printf("[%d] %s %q %s", rec.status, r.RequestURI, string(rec.body), time.Since(start))
-			return
-		}
-		logrus.Printf("[%d] %s %s", rec.status, r.RequestURI, time.Since(start))
+func (r *HTTPRecorder) LogResponse() {
+	// log response body if error
+	if r.status > http.StatusOK {
+		logrus.Errorf("[%d] %s %q %s", r.status, r.req.RequestURI, string(r.body), time.Since(r.start))
+		return
 	}
+	logrus.Infof("[%d] %s %s", r.status, r.req.RequestURI, time.Since(r.start))
 }
