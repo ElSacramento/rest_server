@@ -7,15 +7,18 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"rest_server/pkg/database"
 	"testing"
+
+	"rest_server/pkg/errors"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 )
 
-func TestService_Get(t *testing.T) {
-	dbUser := database.Account{
+func TestHandler_Get(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+
+	usr := serviceUser{
 		ID:       1,
 		Email:    "test@gmail.com",
 		Name:     "test testov",
@@ -24,31 +27,42 @@ func TestService_Get(t *testing.T) {
 		RegionID: 1,
 		Meta:     []byte(`{"gender":"male"}`),
 	}
-	logrus.SetLevel(logrus.DebugLevel)
-	s := Service{DB: database.ServiceMock{GetUserMock: func(ctx context.Context, userID int64) (user *database.Account, e error) {
+
+	s := serviceMock{get: func(ctx context.Context, userID int64) (user *serviceUser, e error) {
 		if userID == -1 {
 			return nil, sql.ErrConnDone
 		}
 		if userID != 1 {
-			return nil, nil
+			return nil, errors.UserNotExistsError{}
 		}
-		return &dbUser, nil
-	}}}
+		return &usr, nil
+	}}
+	h := Handler{user: &s}
+
 	t.Run("OK", func(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "/user?user_id=1", nil)
 		require.NoError(t, err)
 
 		w := httptest.NewRecorder()
-		s.Get(w, r)
+		h.Get(w, r)
 
 		require.Equal(t, http.StatusOK, w.Code)
 
-		var responseUser database.Account
-		if err := json.Unmarshal(w.Body.Bytes(), &responseUser); err != nil {
+		var resp responseUser
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 			t.Fatalf("cant unmarshal: %v", err)
 		}
 
-		require.Equal(t, dbUser, responseUser)
+		expected := responseUser{
+			ID:       usr.ID,
+			Email:    usr.Email,
+			Name:     usr.Name,
+			Phone:    usr.Phone,
+			RegionID: usr.RegionID,
+			Meta:     usr.Meta,
+		}
+
+		require.Equal(t, expected, resp)
 	})
 	t.Run("FAILED", func(t *testing.T) {
 		t.Run("query without user_id key", func(t *testing.T) {
@@ -56,7 +70,7 @@ func TestService_Get(t *testing.T) {
 			require.NoError(t, err)
 
 			w := httptest.NewRecorder()
-			s.Get(w, r)
+			h.Get(w, r)
 
 			require.Equal(t, http.StatusBadRequest, w.Code)
 			require.Contains(t, w.Body.String(), "user_id is required")
@@ -66,7 +80,7 @@ func TestService_Get(t *testing.T) {
 			require.NoError(t, err)
 
 			w := httptest.NewRecorder()
-			s.Get(w, r)
+			h.Get(w, r)
 
 			require.Equal(t, http.StatusBadRequest, w.Code)
 			require.Contains(t, w.Body.String(), "user_id is required")
@@ -76,34 +90,46 @@ func TestService_Get(t *testing.T) {
 			require.NoError(t, err)
 
 			w := httptest.NewRecorder()
-			s.Get(w, r)
+			h.Get(w, r)
 
 			require.Equal(t, http.StatusBadRequest, w.Code)
 			require.Contains(t, w.Body.String(), "not exists")
+		})
+		t.Run("bad user_id", func(t *testing.T) {
+			r, err := http.NewRequest(http.MethodGet, "/user?user_id=test", nil)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			h.Get(w, r)
+
+			require.Equal(t, http.StatusBadRequest, w.Code)
+			require.Contains(t, w.Body.String(), "bad user_id")
 		})
 		t.Run("db error", func(t *testing.T) {
 			r, err := http.NewRequest(http.MethodGet, "/user?user_id=-1", nil)
 			require.NoError(t, err)
 
 			w := httptest.NewRecorder()
-			s.Get(w, r)
+			h.Get(w, r)
 
 			require.Equal(t, http.StatusInternalServerError, w.Code)
 		})
 	})
 }
 
-func TestService_Add(t *testing.T) {
+func TestHandler_Add(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
-	s := Service{DB: database.ServiceMock{InsertUserMock: func(ctx context.Context, dbUser *database.Account) (i int64, e error) {
-		if dbUser.Email == "fail@gmail.com" {
+
+	s := serviceMock{insert: func(ctx context.Context, usr *serviceUser) (i int64, e error) {
+		if usr.Email == "fail@gmail.com" {
 			return 0, sql.ErrTxDone
 		}
-		if dbUser.Email == "exists@gmail.com" {
-			return 0, database.UserAlreadyExistsError{}
+		if usr.Email == "exists@gmail.com" {
+			return 0, errors.UserAlreadyExistsError{}
 		}
 		return 1, nil
-	}}}
+	}}
+	h := Handler{user: &s}
 
 	type response struct {
 		ID int64 `json:"user_id"`
@@ -115,7 +141,7 @@ func TestService_Add(t *testing.T) {
 		require.NoError(t, err)
 
 		w := httptest.NewRecorder()
-		s.Add(w, r)
+		h.Add(w, r)
 
 		require.Equal(t, http.StatusOK, w.Code)
 
@@ -133,7 +159,7 @@ func TestService_Add(t *testing.T) {
 			require.NoError(t, err)
 
 			w := httptest.NewRecorder()
-			s.Add(w, r)
+			h.Add(w, r)
 
 			require.Equal(t, http.StatusBadRequest, w.Code)
 			require.Contains(t, w.Body.String(), "some required params are empty")
@@ -144,7 +170,7 @@ func TestService_Add(t *testing.T) {
 			require.NoError(t, err)
 
 			w := httptest.NewRecorder()
-			s.Add(w, r)
+			h.Add(w, r)
 
 			require.Equal(t, http.StatusBadRequest, w.Code)
 			require.Contains(t, w.Body.String(), "Parse request body failed")
@@ -155,7 +181,7 @@ func TestService_Add(t *testing.T) {
 			require.NoError(t, err)
 
 			w := httptest.NewRecorder()
-			s.Add(w, r)
+			h.Add(w, r)
 
 			require.Equal(t, http.StatusBadRequest, w.Code)
 			require.Contains(t, w.Body.String(), "Parse request body failed")
@@ -166,7 +192,7 @@ func TestService_Add(t *testing.T) {
 			require.NoError(t, err)
 
 			w := httptest.NewRecorder()
-			s.Add(w, r)
+			h.Add(w, r)
 
 			require.Equal(t, http.StatusInternalServerError, w.Code)
 		})
@@ -176,7 +202,7 @@ func TestService_Add(t *testing.T) {
 			require.NoError(t, err)
 
 			w := httptest.NewRecorder()
-			s.Add(w, r)
+			h.Add(w, r)
 
 			require.Equal(t, http.StatusBadRequest, w.Code)
 			require.Contains(t, w.Body.String(), "user already exists")

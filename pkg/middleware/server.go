@@ -19,7 +19,7 @@ type server struct {
 
 	db database.DataStore
 
-	user *user.Service
+	user *user.Module
 }
 
 func NewServer(cfg *Config) (*server, error) {
@@ -40,7 +40,7 @@ func NewServer(cfg *Config) (*server, error) {
 		addr:   cfg.Server.Host + ":" + cfg.Server.Port,
 		router: &Router{routes: make(map[string]route)},
 		db:     db,
-		user:   &user.Service{DB: db},
+		user:   user.New(db),
 	}
 	s.routes()
 
@@ -82,6 +82,6 @@ func (s *server) Stop() {
 }
 
 func (s *server) routes() {
-	s.router.Get("/user", s.user.Get)
-	s.router.Post("/user/add", s.user.Add)
+	s.router.Get("/user", s.user.H.Get)
+	s.router.Post("/user/add", s.user.H.Add)
 }

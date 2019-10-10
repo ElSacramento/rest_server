@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lib/pq"
+	"rest_server/pkg/errors"
 
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/xerrors"
@@ -54,7 +55,7 @@ func (db *PostgresDB) GetUser(ctx context.Context, userID int64) (*Account, erro
 		ctx, `select user_id, email, name, phone, region_id from account where user_id = $1;`, userID).
 		Scan(&dbUser.ID, &dbUser.Email, &dbUser.Name, &dbUser.Phone, &dbUser.RegionID)
 	if err == sql.ErrNoRows {
-		return nil, nil
+		return nil, errors.UserNotExistsError{}
 	}
 	if err != nil {
 		return nil, err
@@ -68,20 +69,18 @@ func (db *PostgresDB) InsertUser(ctx context.Context, dbUser *Account) (int64, e
 		return 0, err
 	}
 
-	// todo pwd hash
-	pwd := dbUser.Password
 	createdAt := time.Now()
 	var userID int64
 	err = tx.QueryRowContext(ctx,
 		"insert into account (email, password, name, phone, region_id, version, created, updated, last_login, last_action) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) returning user_id",
-		dbUser.Email, pwd, dbUser.Name, dbUser.Phone, dbUser.RegionID, 1, createdAt, createdAt, time.Time{}, time.Time{}).Scan(&userID)
+		dbUser.Email, dbUser.Password, dbUser.Name, dbUser.Phone, dbUser.RegionID, 1, createdAt, createdAt, time.Time{}, time.Time{}).Scan(&userID)
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
 			return 0, err
 		}
 		if err, ok := err.(*pq.Error); ok {
 			if err.Code == "23505" {
-				return 0, UserAlreadyExistsError{}
+				return 0, errors.UserAlreadyExistsError{}
 			}
 			return 0, xerrors.Errorf("pq error: %s, code: %s", err.Code.Name(), err.Code)
 		}
